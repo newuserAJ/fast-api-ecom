@@ -1,15 +1,46 @@
-from fastapi import FastAPI,HTTPException,Query
+import os
+from dotenv import load_dotenv
+from fastapi import FastAPI,HTTPException,Query,Path,Depends,Request
+from fastapi.responses import JSONResponse
 from services.products import get_products, add_product,remove_product,change_product
-from fastapi import Path
 from schema.product import Product,ProductUpdate
 from uuid import uuid4, UUID
 from datetime import datetime
+from typing import Dict
+
+load_dotenv()
 app=FastAPI()
+
+DB_PATH=os.getenv("BASE_URL")
+
+
+#basically tells the lifecycle of the request and response
+#request->dependency->validation(if any)->function->output->response
+# @app.middleware("http")
+# async def lifecycle(request:Request,call_next):
+#      print("Before lifecycle")\
+#      response = await call_next(request)
+#      print("After lifecycle")
+#      return response
+
 #app.get is for getting/fetching the data from the database etc.
 #static route result remains the same
-@app.get("/")
-def root():
-     return {"message":"Welcome to FastAPI"}
+
+#response_model is for defining in the route what type of output we will get
+#Depends(func) is basically for using reusable code
+#hello function can be used with any other function
+def hello():
+     return "Hello world"
+
+#JSONResponse is basically a wait to show the output
+@app.get("/",response_model=Dict)
+def root(dep=Depends(hello)):
+     #return {"message":"Welcome to FastAPI","dependencies":dep,"Data_path":DB_PATH}
+     return JSONResponse(
+          status_code=200,
+          content={"message":"Welcome to FastAPI",
+                   "dependencies":dep,
+                   "Data_path":DB_PATH})
 
 #dynamic route: value will change with input
 # @app.get("/products/{id}")
@@ -51,7 +82,7 @@ def list_products(name:str=Query(default=None,min_length=1,max_length=50,descrip
 @app.get('/products/{product_id}')
 def get_product_by_id(product_id:int=Path(...,ge=1,le=50,description="Search by product id",examples=[1],)):
      products=get_products()
-     prod=[p for p in products if p.get('id')==product_id]
+     prod=[p for p in products if p['id']==product_id]
      if not prod:
           raise HTTPException(status_code=404,detail=F"Product with id {product_id} not found")
      return prod[0]
